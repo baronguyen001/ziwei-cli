@@ -1,6 +1,6 @@
 {
   "name": "ziwei-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Zi Wei Dou Shu (紫微斗数 / Tử Vi Đẩu Số) natal chart calculator — TypeScript library + CLI with an optional OpenAI-compatible AI reading.",
   "keywords": [
     "ziwei",

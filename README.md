@@ -39,11 +39,34 @@ ziwei chart --date 1990-05-20 --hour 6 --gender female --format json
 # Markdown, with English star names
 ziwei chart --date 1988-11-02 --hour 3 --gender male --format markdown --lang en
 
+# A self-contained HTML page (no JS, no external assets) — save it, open it, email it
+ziwei chart --date 1990-05-20 --hour 6 --gender male --format html > chart.html
+
 # List the 12 birth-hour branches
 ziwei hours
 ```
 
 The **birth hour** is the traditional two-hour branch index: `0 = Tý (23:00–01:00)` … `11 = Hợi (21:00–23:00)`. Run `ziwei hours` for the full table.
+
+## Batch & compare (new in v0.2 — deterministic, offline, no key)
+
+```bash
+# Compute many charts in one pass → JSON Lines (one chart per line)
+ziwei batch --input births.csv               # date,hour,gender[,lang][,label]
+ziwei batch --input births.json --format json
+
+# Compare two charts (synastry): shared stars/positions + an illustrative affinity score
+ziwei compare \
+  --date1 1990-05-20 --hour1 6 --gender1 male \
+  --date2 1988-11-02 --hour2 3 --gender2 female
+```
+
+`births.csv` is `date,hour,gender[,lang][,label]` (an optional header row, `#`
+comments and blank lines are ignored); `births.json` is an array of
+`{ date, hour|hourIndex, gender, lang?, label? }`. A bad row becomes an error
+result instead of aborting the batch, and `ziwei batch` exits non-zero if any
+row failed. The affinity score from `compare` is a deterministic structural
+heuristic for illustration — **not advice**.
 
 ## Library usage
 

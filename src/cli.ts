@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
+import { readFileSync } from 'node:fs';
 import { calculateChart, InvalidBirthInputError } from './chart.js';
 import { formatChart, type ChartFormat } from './format.js';
 import { interpretChart, type ChatClient, type SectionKey } from './ai.js';
+import {
+  parseBatchCsv,
+  parseBatchJson,
+  calculateBatch,
+  toJsonl,
+} from './batch.js';
+import { compareCharts, formatComparison, type ComparisonFormat } from './compare.js';
 import { BIRTH_HOURS, type Gender, type Lang } from './types.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 
 export interface CliIO {
   log: (msg: string) => void;
@@ -20,14 +28,24 @@ const DEFAULT_IO: CliIO = {
 const HELP = `ziwei — Zi Wei Dou Shu (紫微斗数 / Tử Vi Đẩu Số) natal chart CLI
 
 Usage:
-  ziwei chart --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
-  ziwei read  --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei chart   --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei read    --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei batch   --input <births.csv|.json> [--format jsonl|json]
+  ziwei compare --date1 .. --hour1 .. --gender1 .. --date2 .. --hour2 .. --gender2 .. [options]
   ziwei hours
   ziwei --help | --version
 
 chart options:
-  --format <text|markdown|json>   output format (default: text)
-  --lang   <vi|en>                name language (default: vi)
+  --format <text|markdown|json|html>   output format (default: text)
+  --lang   <vi|en>                     name language (default: vi)
+
+batch options (deterministic, offline — no key needed):
+  --input  <file>   .csv (date,hour,gender[,lang][,label]) or .json (array of births)
+  --format <jsonl|json>                output format (default: jsonl)
+
+compare options (deterministic synastry of two charts, offline):
+  --format <text|markdown|json>        output format (default: text)
+  --lang   <vi|en>                     name language (default: vi)
 
 read options (AI interpretation, needs an OpenAI-compatible key):
   --lang     <vi|en>              answer language (default: vi)
@@ -69,8 +87,10 @@ function toGender(v: string | undefined): Gender {
 
 function toFormat(v: string | undefined): ChartFormat {
   if (v === undefined) return 'text';
-  if (v === 'text' || v === 'markdown' || v === 'json') return v;
-  throw new InvalidBirthInputError(`--format must be text|markdown|json, got "${v}"`);
+  if (v === 'text' || v === 'markdown' || v === 'json' || v === 'html') return v;
+  throw new InvalidBirthInputError(
+    `--format must be text|markdown|json|html, got "${v}"`,
+  );
 }
 
 function toLang(v: string | undefined): Lang {
@@ -109,6 +129,91 @@ function cmdChart(rest: string[], io: CliIO): number {
   const format = toFormat(args.format);
   const chart = calculateChart(input);
   io.log(formatChart(chart, { format }));
+  return 0;
+}
+
+interface BatchArgs {
+  input?: string;
+  format?: string;
+}
+
+function cmdBatch(rest: string[], io: CliIO): number {
+  const { values } = parseArgs({
+    args: rest,
+    options: {
+      input: { type: 'string' },
+      format: { type: 'string' },
+    },
+    allowPositionals: false,
+  });
+  const args = values as BatchArgs;
+  if (!args.input) {
+    throw new InvalidBirthInputError('--input <births.csv|.json> is required');
+  }
+  const text = readFileSync(args.input, 'utf8');
+  const entries = /\.json$/i.test(args.input)
+    ? parseBatchJson(text)
+    : parseBatchCsv(text);
+  const results = calculateBatch(entries);
+  const format = args.format ?? 'jsonl';
+  if (format === 'json') {
+    io.log(JSON.stringify(results, null, 2));
+  } else if (format === 'jsonl') {
+    io.log(toJsonl(results));
+  } else {
+    throw new InvalidBirthInputError(`--format must be jsonl|json, got "${format}"`);
+  }
+  const failed = results.filter((r) => !r.ok).length;
+  return failed > 0 ? 1 : 0;
+}
+
+interface CompareArgs {
+  date1?: string;
+  hour1?: string;
+  gender1?: string;
+  date2?: string;
+  hour2?: string;
+  gender2?: string;
+  format?: string;
+  lang?: string;
+}
+
+function toComparisonFormat(v: string | undefined): ComparisonFormat {
+  if (v === undefined || v === 'text') return 'text';
+  if (v === 'markdown' || v === 'json') return v;
+  throw new InvalidBirthInputError(`--format must be text|markdown|json, got "${v}"`);
+}
+
+function cmdCompare(rest: string[], io: CliIO): number {
+  const { values } = parseArgs({
+    args: rest,
+    options: {
+      date1: { type: 'string' },
+      hour1: { type: 'string' },
+      gender1: { type: 'string' },
+      date2: { type: 'string' },
+      hour2: { type: 'string' },
+      gender2: { type: 'string' },
+      format: { type: 'string' },
+      lang: { type: 'string' },
+    },
+    allowPositionals: false,
+  });
+  const args = values as CompareArgs;
+  const one = chartInputFrom({
+    date: args.date1,
+    hour: args.hour1,
+    gender: args.gender1,
+    lang: args.lang,
+  });
+  const two = chartInputFrom({
+    date: args.date2,
+    hour: args.hour2,
+    gender: args.gender2,
+    lang: args.lang,
+  });
+  const cmp = compareCharts(calculateChart(one), calculateChart(two));
+  io.log(formatComparison(cmp, { format: toComparisonFormat(args.format) }));
   return 0;
 }
 
@@ -185,6 +290,10 @@ export async function run(argv: string[], io: CliIO = DEFAULT_IO): Promise<numbe
         return 0;
       case 'chart':
         return cmdChart(rest, io);
+      case 'batch':
+        return cmdBatch(rest, io);
+      case 'compare':
+        return cmdCompare(rest, io);
       case 'read':
         return await cmdRead(rest, io);
       default:

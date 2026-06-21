@@ -15,6 +15,15 @@
 export { calculateChart, InvalidBirthInputError } from './chart.js';
 export { formatChart } from './format.js';
 export type { ChartFormat, FormatOptions } from './format.js';
+export {
+  parseBatchCsv,
+  parseBatchJson,
+  calculateBatch,
+  toJsonl,
+} from './batch.js';
+export type { BatchEntry, BatchResult, BatchOk, BatchErr } from './batch.js';
+export { compareCharts, formatComparison } from './compare.js';
+export type { Comparison, ComparisonFormat, SharedPosition } from './compare.js';
 export { interpretChart, SECTIONS } from './ai.js';
 export type {
   ChatClient,
