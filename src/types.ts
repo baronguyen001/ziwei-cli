@@ -73,6 +73,34 @@ export interface Chart {
   palaces: Palace[];
 }
 
+/** A palace activated by a timing layer such as decadal or annual flow. */
+export interface HoroscopePalace {
+  index: number;
+  name: string;
+  heavenlyStem: string;
+  earthlyBranch: string;
+  /** Decadal age range when this palace represents a 10-year period. */
+  range?: string;
+}
+
+/** One annual four-transformation target. */
+export interface HoroscopeTransformation {
+  /** Transformation slot in the traditional order: loc, quyen, khoa, ky. */
+  kind: 'loc' | 'quyen' | 'khoa' | 'ky';
+  star: string;
+  palace: HoroscopePalace | null;
+}
+
+/** Deterministic timing layer for a natal chart at a target solar date. */
+export interface Horoscope {
+  birthDate: string;
+  targetDate: string;
+  lunarDate: string;
+  decadal: HoroscopePalace;
+  annual: HoroscopePalace;
+  annualTransformations: HoroscopeTransformation[];
+}
+
 /** The twelve birth two-hour branches (địa chi giờ). */
 export const BIRTH_HOURS: ReadonlyArray<{
   index: number;

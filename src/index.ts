@@ -24,6 +24,25 @@ export {
 export type { BatchEntry, BatchResult, BatchOk, BatchErr } from './batch.js';
 export { compareCharts, formatComparison } from './compare.js';
 export type { Comparison, ComparisonFormat, SharedPosition } from './compare.js';
+export { calculateHoroscope, formatHoroscope } from './horoscope.js';
+export type { HoroscopeFormat, HoroscopeFormatOptions } from './horoscope.js';
+export { compareCohort, formatCohort } from './cohort.js';
+export type {
+  CohortComparison,
+  CohortFormat,
+  CohortFormatOptions,
+  CohortMatrixCell,
+  CohortPair,
+} from './cohort.js';
+export { analyzeChart, formatAnalysis } from './analyze.js';
+export type {
+  AnalysisFormat,
+  AnalysisFormatOptions,
+  ChartAnalysis,
+  EmptyPalace,
+  PalaceStarSummary,
+  StarClassTally,
+} from './analyze.js';
 export { interpretChart, SECTIONS } from './ai.js';
 export type {
   ChatClient,
@@ -37,6 +56,9 @@ export type {
   Chart,
   Decadal,
   Gender,
+  Horoscope,
+  HoroscopePalace,
+  HoroscopeTransformation,
   Lang,
   Palace,
   Star,

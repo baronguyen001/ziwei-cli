@@ -4,6 +4,24 @@ All notable changes to **ziwei-cli** are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-07-07
+
+### Added
+- **Horoscope timing layer** - `ziwei horoscope` plus
+  `calculateHoroscope` / `formatHoroscope` expose the active decade palace,
+  annual palace and annual four-transformation targets for a target solar date.
+- **Cohort affinity** - `ziwei cohort` plus `compareCohort` / `formatCohort`
+  compare many charts at once by reusing the existing pairwise `compareCharts`
+  affinity score and rendering a matrix plus ranked pairs.
+- **Structural analytics** - `ziwei analyze` plus `analyzeChart` /
+  `formatAnalysis` summarize brightness counts, auspicious/inauspicious star
+  tallies, empty palaces and per-palace star counts.
+
+### Notes
+- All three features are deterministic, offline and require no API key.
+- `analyze` and cohort affinity output are structural/descriptive only, not
+  advice or prediction.
+
 ## [0.2.0] - 2026-06-21
 
 ### Added

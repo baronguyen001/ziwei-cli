@@ -11,9 +11,12 @@ import {
   toJsonl,
 } from './batch.js';
 import { compareCharts, formatComparison, type ComparisonFormat } from './compare.js';
+import { calculateHoroscope, formatHoroscope } from './horoscope.js';
+import { compareCohort, formatCohort } from './cohort.js';
+import { analyzeChart, formatAnalysis } from './analyze.js';
 import { BIRTH_HOURS, type Gender, type Lang } from './types.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 
 export interface CliIO {
   log: (msg: string) => void;
@@ -25,34 +28,43 @@ const DEFAULT_IO: CliIO = {
   error: (m) => console.error(m),
 };
 
-const HELP = `ziwei — Zi Wei Dou Shu (紫微斗数 / Tử Vi Đẩu Số) natal chart CLI
+const HELP = `ziwei - Zi Wei Dou Shu natal chart CLI
 
 Usage:
-  ziwei chart   --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
-  ziwei read    --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
-  ziwei batch   --input <births.csv|.json> [--format jsonl|json]
-  ziwei compare --date1 .. --hour1 .. --gender1 .. --date2 .. --hour2 .. --gender2 .. [options]
+  ziwei chart      --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei analyze    --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei horoscope  --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei read       --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei batch      --input <births.csv|.json> [--format jsonl|json]
+  ziwei compare    --date1 .. --hour1 .. --gender1 .. --date2 .. --hour2 .. --gender2 .. [options]
+  ziwei cohort     --input <births.csv|.json> [options]
   ziwei hours
   ziwei --help | --version
 
-chart options:
+chart/analyze/horoscope options:
   --format <text|markdown|json|html>   output format (default: text)
-  --lang   <vi|en>                     name language (default: vi)
+  --lang   <vi|en|zh>                  name language (default: vi)
+  --target <YYYY|YYYY-MM-DD>           target date for horoscope (default: birth date)
 
-batch options (deterministic, offline — no key needed):
+batch options (deterministic, offline - no key needed):
   --input  <file>   .csv (date,hour,gender[,lang][,label]) or .json (array of births)
   --format <jsonl|json>                output format (default: jsonl)
 
 compare options (deterministic synastry of two charts, offline):
   --format <text|markdown|json>        output format (default: text)
-  --lang   <vi|en>                     name language (default: vi)
+  --lang   <vi|en|zh>                  name language (default: vi)
+
+cohort options (deterministic affinity matrix, offline):
+  --input  <file>                      .csv or .json batch input
+  --format <text|markdown|json|html>   output format (default: text)
+  --lang   <vi|en|zh>                  name language (default: vi)
 
 read options (AI interpretation, needs an OpenAI-compatible key):
   --lang     <vi|en>              answer language (default: vi)
   --sections <a,b,c>              subset of: overview,career,love,health,fortune,advice
   Reads env: TUVI_AI_API_KEY, TUVI_AI_BASE_URL, TUVI_AI_MODEL
 
-Birth hour is the two-hour branch index: 0 = Tý (23:00–01:00) … 11 = Hợi.
+Birth hour is the two-hour branch index: 0 = Ty (23:00-01:00) ... 11 = Hoi.
 Run "ziwei hours" to list them.`;
 
 interface ChartArgs {
@@ -62,6 +74,7 @@ interface ChartArgs {
   format?: string;
   lang?: string;
   sections?: string;
+  target?: string;
 }
 
 function parseChartArgs(rest: string[]): ChartArgs {
@@ -74,6 +87,7 @@ function parseChartArgs(rest: string[]): ChartArgs {
       format: { type: 'string' },
       lang: { type: 'string' },
       sections: { type: 'string' },
+      target: { type: 'string' },
     },
     allowPositionals: false,
   });
@@ -94,9 +108,10 @@ function toFormat(v: string | undefined): ChartFormat {
 }
 
 function toLang(v: string | undefined): Lang {
-  if (v === undefined || v === 'vi') return 'vi-VN';
-  if (v === 'en') return 'en-US';
-  throw new InvalidBirthInputError(`--lang must be vi|en, got "${v}"`);
+  if (v === undefined || v === 'vi' || v === 'vi-VN') return 'vi-VN';
+  if (v === 'en' || v === 'en-US') return 'en-US';
+  if (v === 'zh' || v === 'zh-CN') return 'zh-CN';
+  throw new InvalidBirthInputError(`--lang must be vi|en|zh, got "${v}"`);
 }
 
 function chartInputFrom(args: ChartArgs): {
@@ -117,9 +132,9 @@ function chartInputFrom(args: ChartArgs): {
 }
 
 function printHours(io: CliIO): void {
-  io.log('Birth-hour branches (index: branch — animal — range):');
+  io.log('Birth-hour branches (index: branch - animal - range):');
   for (const h of BIRTH_HOURS) {
-    io.log(`  ${String(h.index).padStart(2)}: ${h.branch} — ${h.animal} — ${h.range}`);
+    io.log(`  ${String(h.index).padStart(2)}: ${h.branch} - ${h.animal} - ${h.range}`);
   }
 }
 
@@ -132,9 +147,32 @@ function cmdChart(rest: string[], io: CliIO): number {
   return 0;
 }
 
+function cmdAnalyze(rest: string[], io: CliIO): number {
+  const args = parseChartArgs(rest);
+  const input = chartInputFrom(args);
+  const format = toFormat(args.format);
+  const chart = calculateChart(input);
+  io.log(formatAnalysis(analyzeChart(chart), { format, lang: input.lang }));
+  return 0;
+}
+
+function cmdHoroscope(rest: string[], io: CliIO): number {
+  const args = parseChartArgs(rest);
+  const input = chartInputFrom(args);
+  const format = toFormat(args.format);
+  const horoscope = calculateHoroscope(input, args.target ?? input.date);
+  io.log(formatHoroscope(horoscope, { format, lang: input.lang }));
+  return 0;
+}
+
 interface BatchArgs {
   input?: string;
   format?: string;
+}
+
+function batchEntriesFromFile(input: string) {
+  const text = readFileSync(input, 'utf8');
+  return /\.json$/i.test(input) ? parseBatchJson(text) : parseBatchCsv(text);
 }
 
 function cmdBatch(rest: string[], io: CliIO): number {
@@ -150,11 +188,7 @@ function cmdBatch(rest: string[], io: CliIO): number {
   if (!args.input) {
     throw new InvalidBirthInputError('--input <births.csv|.json> is required');
   }
-  const text = readFileSync(args.input, 'utf8');
-  const entries = /\.json$/i.test(args.input)
-    ? parseBatchJson(text)
-    : parseBatchCsv(text);
-  const results = calculateBatch(entries);
+  const results = calculateBatch(batchEntriesFromFile(args.input));
   const format = args.format ?? 'jsonl';
   if (format === 'json') {
     io.log(JSON.stringify(results, null, 2));
@@ -217,6 +251,51 @@ function cmdCompare(rest: string[], io: CliIO): number {
   return 0;
 }
 
+interface CohortArgs {
+  input?: string;
+  format?: string;
+  lang?: string;
+}
+
+function cmdCohort(rest: string[], io: CliIO): number {
+  const { values } = parseArgs({
+    args: rest,
+    options: {
+      input: { type: 'string' },
+      format: { type: 'string' },
+      lang: { type: 'string' },
+    },
+    allowPositionals: false,
+  });
+  const args = values as CohortArgs;
+  if (!args.input) {
+    throw new InvalidBirthInputError('--input <births.csv|.json> is required');
+  }
+  const lang = toLang(args.lang);
+  const entries = batchEntriesFromFile(args.input).map((entry) => ({
+    ...entry,
+    input: { ...entry.input, lang: entry.input.lang ?? lang },
+  }));
+  const results = calculateBatch(entries);
+  const charts = [];
+  const labels = [];
+  let failed = false;
+  for (let i = 0; i < results.length; i += 1) {
+    const result = results[i]!;
+    if (result.ok) {
+      charts.push(result.chart);
+      labels.push(result.label ?? `chart ${i + 1}`);
+    } else {
+      failed = true;
+      const label = result.label ? ` (${result.label})` : '';
+      io.error(`row ${i + 1}${label}: ${result.error}`);
+    }
+  }
+  if (failed) return 1;
+  io.log(formatCohort(compareCohort(charts), labels, { format: toFormat(args.format), lang }));
+  return 0;
+}
+
 async function buildClientFromEnv(): Promise<ChatClient | null> {
   const apiKey = process.env.TUVI_AI_API_KEY;
   if (!apiKey) return null;
@@ -259,7 +338,7 @@ async function cmdRead(rest: string[], io: CliIO): Promise<number> {
     client,
     sections,
     lang,
-    onProgress: (done, total, title) => io.error(`[${done}/${total}] ${title}…`),
+    onProgress: (done, total, title) => io.error(`[${done}/${total}] ${title}...`),
   });
   for (const r of results) {
     io.log(`\n## ${r.icon} ${r.title}\n`);
@@ -290,10 +369,16 @@ export async function run(argv: string[], io: CliIO = DEFAULT_IO): Promise<numbe
         return 0;
       case 'chart':
         return cmdChart(rest, io);
+      case 'analyze':
+        return cmdAnalyze(rest, io);
+      case 'horoscope':
+        return cmdHoroscope(rest, io);
       case 'batch':
         return cmdBatch(rest, io);
       case 'compare':
         return cmdCompare(rest, io);
+      case 'cohort':
+        return cmdCohort(rest, io);
       case 'read':
         return await cmdRead(rest, io);
       default:
