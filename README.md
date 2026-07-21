@@ -9,7 +9,7 @@
 
 `ziwei-cli` is a small TypeScript **library + CLI** that turns a birth date/time into a fully computed Zi Wei Dou Shu chart: the 12 palaces, Soul/Body stars, Five-Elements Class, decade periods, stars, brightness and four-transformations.
 
-The chart engine is **deterministic and offline** (it wraps [`iztro`](https://github.com/SylarLong/iztro)). An optional AI command turns the chart into a written reading via any OpenAI-compatible endpoint, but no key is needed for chart, batch, compare, horoscope, cohort or analyze output.
+The chart engine is **deterministic and offline** (it wraps [`iztro`](https://github.com/SylarLong/iztro)). An optional AI command turns the chart into a written reading via any OpenAI-compatible endpoint, but no key is needed for chart, batch, compare, horoscope, cohort, analyze, mutagen or elements output.
 
 ---
 
@@ -44,9 +44,16 @@ ziwei horoscope --date 1990-05-20 --hour 6 --gender male --target 2026 --lang en
 # Structural digest: brightness counts, star tallies and empty palaces
 ziwei analyze --date 1990-05-20 --hour 6 --gender male --format markdown
 
-# Compute many charts in one pass -> JSON Lines
+# Four-transformations map: Loc/Quyen/Khoa/Ky placements
+ziwei mutagen --date 1990-05-20 --hour 6 --gender male --lang vi
+
+# Five-element branch balance weighted by palace star count
+ziwei elements --date 1990-05-20 --hour 6 --gender male --format html > elements.html
+
+# Compute many charts in one pass -> JSON Lines, JSON or CSV
 ziwei batch --input births.csv
 ziwei batch --input births.json --format json
+ziwei batch --input births.csv --format csv > charts.csv
 
 # Compare two charts: shared stars/positions + illustrative affinity score
 ziwei compare \
@@ -64,7 +71,7 @@ The **birth hour** is the traditional two-hour branch index: `0 = Ty (23:00-01:0
 
 `births.csv` is `date,hour,gender[,lang][,label]` (an optional header row, `#` comments and blank lines are ignored). `births.json` is an array of `{ date, hour|hourIndex, gender, lang?, label? }`. Bad batch rows become error results instead of aborting the whole batch. `cohort` reuses the same input shape and reports bad rows clearly before producing a matrix.
 
-The affinity score from `compare` and `cohort` is a deterministic structural heuristic for illustration, **not advice**. `analyze` is also structural/descriptive only and is **not advice**.
+The affinity score from `compare` and `cohort` is a deterministic structural heuristic for illustration, **not advice**. `analyze`, `mutagen` and `elements` are also structural/descriptive only and are **not advice**.
 
 ## Library usage
 
@@ -72,12 +79,16 @@ The affinity score from `compare` and `cohort` is a deterministic structural heu
 import {
   analyzeChart,
   calculateChart,
+  analyzeElements,
+  analyzeMutagens,
   calculateHoroscope,
   compareCohort,
   formatAnalysis,
   formatChart,
   formatCohort,
+  formatElements,
   formatHoroscope,
+  formatMutagens,
 } from 'ziwei-cli';
 
 const chart = calculateChart({
@@ -98,6 +109,12 @@ console.log(formatHoroscope(timing, { format: 'markdown' }));
 const analysis = analyzeChart(chart);
 console.log(formatAnalysis(analysis));
 
+const mutagens = analyzeMutagens(chart);
+console.log(formatMutagens(mutagens, { format: 'markdown' }));
+
+const elements = analyzeElements(chart);
+console.log(formatElements(elements, { format: 'json' }));
+
 const cohort = compareCohort([
   chart,
   calculateChart({ date: '1988-11-02', hourIndex: 3, gender: 'female', lang: 'en-US' }),
@@ -105,7 +122,7 @@ const cohort = compareCohort([
 console.log(formatCohort(cohort, ['alpha', 'beta'], { format: 'json' }));
 ```
 
-Every field is typed (`Chart`, `Palace`, `Star`, `Decadal`, `BirthInput`, `Horoscope`, `ChartAnalysis`, `CohortComparison`). Invalid input throws a typed `InvalidBirthInputError`.
+Every field is typed (`Chart`, `Palace`, `Star`, `Decadal`, `BirthInput`, `Horoscope`, `ChartAnalysis`, `MutagenReport`, `ElementsReport`, `CohortComparison`). Invalid input throws a typed `InvalidBirthInputError`.
 
 ## Optional: AI reading
 
@@ -136,6 +153,12 @@ const sections = await interpretChart(calculateChart(input), { client, lang: 'en
 
 `calculateChart` is a thin, typed, validated wrapper over [`iztro`](https://github.com/SylarLong/iztro), which does the astronomical/astrological computation. `ziwei-cli` adds input validation, a stable typed surface, deterministic offline renderers, optional injectable AI reading, and a CLI. Tests run fully offline against deterministic output.
 
+The structural commands added for v0.4 stay keyless and local:
+
+- `mutagen` maps stars carrying the four transformations and highlights whether Ky lands on Mệnh, Tài Bạch, Quan Lộc or Thiên Di.
+- `elements` maps palace earthly branches to the standard five elements, weights each palace by total star count, and reports a reproducible balance score.
+- `batch --format csv` exports one row per birth with stable columns for spreadsheets or downstream scripts.
+
 ## Ideas to build on it
 
 - A Telegram / Discord bot that DMs a chart + reading
@@ -143,6 +166,7 @@ const sections = await interpretChart(calculateChart(input), { client, lang: 'en
 - Batch research over many charts
 - Timing dashboards using `calculateHoroscope`
 - Offline structural summaries using `analyzeChart`
+- CSV pipelines using `ziwei batch --format csv`
 
 ## Contributing
 

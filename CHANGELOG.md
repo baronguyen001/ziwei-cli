@@ -4,6 +4,25 @@ All notable changes to **ziwei-cli** are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## v0.4.0 - 2026-07-21
+
+### Added
+- **Four-transformations map** - `ziwei mutagen` plus
+  `analyzeMutagens` / `formatMutagens` scan chart stars for Loc, Quyen, Khoa
+  and Ky markers across Vietnamese, English and Chinese engine output, report
+  their palace placements, and flag whether Ky lands on a life-axis palace.
+- **Five-element branch balance** - `ziwei elements` plus
+  `analyzeElements` / `formatElements` weight the twelve palace branches by
+  star count, report dominant and deficient elements, echo the chart's
+  five-elements class, and include a deterministic 0-100 balance score.
+- **Batch CSV export** - `ziwei batch --format csv` and `toCsv` emit stable
+  columns (`date,hour,gender,label,ok,soul,body,fiveElementsClass,error`) with
+  CSV escaping and failed-row errors preserved.
+
+### Notes
+- All new features are deterministic, offline and require no API key.
+- `mutagen` and `elements` output is structural/descriptive only, not advice.
+
 ## [0.3.0] - 2026-07-07
 
 ### Added

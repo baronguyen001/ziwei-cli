@@ -20,6 +20,7 @@ export {
   parseBatchJson,
   calculateBatch,
   toJsonl,
+  toCsv,
 } from './batch.js';
 export type { BatchEntry, BatchResult, BatchOk, BatchErr } from './batch.js';
 export { compareCharts, formatComparison } from './compare.js';
@@ -43,6 +44,22 @@ export type {
   PalaceStarSummary,
   StarClassTally,
 } from './analyze.js';
+export { analyzeMutagens, formatMutagens } from './mutagen.js';
+export type {
+  MutagenEntry,
+  MutagenFormat,
+  MutagenFormatOptions,
+  MutagenKind,
+  MutagenReport,
+} from './mutagen.js';
+export { analyzeElements, formatElements } from './elements.js';
+export type {
+  BranchTally,
+  ElementKey,
+  ElementsFormat,
+  ElementsFormatOptions,
+  ElementsReport,
+} from './elements.js';
 export { interpretChart, SECTIONS } from './ai.js';
 export type {
   ChatClient,

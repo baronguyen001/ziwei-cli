@@ -151,3 +151,42 @@ export function calculateBatch(entries: BatchEntry[]): BatchResult[] {
 export function toJsonl(results: BatchResult[]): string {
   return results.map((r) => JSON.stringify(r)).join('\n');
 }
+
+const CSV_COLUMNS = [
+  'date',
+  'hour',
+  'gender',
+  'label',
+  'ok',
+  'soul',
+  'body',
+  'fiveElementsClass',
+  'error',
+] as const;
+
+function csvCell(value: unknown): string {
+  const text = value === undefined || value === null ? '' : String(value);
+  if (/[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+/** Serialise batch results as CSV with stable columns: date,hour,gender,label,ok,soul,body,fiveElementsClass,error. */
+export function toCsv(results: BatchResult[]): string {
+  const rows = [CSV_COLUMNS.join(',')];
+  for (const result of results) {
+    const input = result.input as Partial<BirthInput>;
+    const row = [
+      input.date,
+      input.hourIndex,
+      input.gender,
+      result.label,
+      result.ok,
+      result.ok ? result.chart.soul : '',
+      result.ok ? result.chart.body : '',
+      result.ok ? result.chart.fiveElementsClass : '',
+      result.ok ? '' : result.error,
+    ];
+    rows.push(row.map(csvCell).join(','));
+  }
+  return rows.join('\n');
+}

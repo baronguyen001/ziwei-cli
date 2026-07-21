@@ -4,6 +4,7 @@ import {
   parseBatchJson,
   calculateBatch,
   toJsonl,
+  toCsv,
 } from '../src/batch.js';
 
 describe('parseBatchCsv', () => {
@@ -103,5 +104,29 @@ describe('calculateBatch + toJsonl', () => {
     for (const line of lines) {
       expect(() => JSON.parse(line)).not.toThrow();
     }
+  });
+});
+
+describe('toCsv', () => {
+  it('uses the documented stable column order', () => {
+    expect(toCsv([])).toBe('date,hour,gender,label,ok,soul,body,fiveElementsClass,error');
+  });
+
+  it('escapes CSV fields and includes failed rows', () => {
+    const results = calculateBatch([
+      {
+        label: 'ok, "quoted"',
+        input: { date: '1990-05-20', hourIndex: 6, gender: 'male' },
+      },
+      { label: 'bad\nrow', input: { date: 'nope', hourIndex: 6, gender: 'female' } },
+    ]);
+    const csv = toCsv(results);
+    const lines = csv.split('\n');
+    expect(lines[0]).toBe('date,hour,gender,label,ok,soul,body,fiveElementsClass,error');
+    expect(lines[1]).toContain('"ok, ""quoted"""');
+    expect(lines[1]).toContain(',true,');
+    expect(csv).toContain('"bad\nrow"');
+    expect(csv).toContain(',false,,,,');
+    expect(csv).toContain('date must be in YYYY-MM-DD format');
   });
 });

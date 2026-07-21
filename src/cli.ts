@@ -9,14 +9,17 @@ import {
   parseBatchJson,
   calculateBatch,
   toJsonl,
+  toCsv,
 } from './batch.js';
 import { compareCharts, formatComparison, type ComparisonFormat } from './compare.js';
 import { calculateHoroscope, formatHoroscope } from './horoscope.js';
 import { compareCohort, formatCohort } from './cohort.js';
 import { analyzeChart, formatAnalysis } from './analyze.js';
+import { analyzeMutagens, formatMutagens } from './mutagen.js';
+import { analyzeElements, formatElements } from './elements.js';
 import { BIRTH_HOURS, type Gender, type Lang } from './types.js';
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 
 export interface CliIO {
   log: (msg: string) => void;
@@ -33,22 +36,24 @@ const HELP = `ziwei - Zi Wei Dou Shu natal chart CLI
 Usage:
   ziwei chart      --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
   ziwei analyze    --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei mutagen    --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
+  ziwei elements   --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
   ziwei horoscope  --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
   ziwei read       --date <YYYY-MM-DD> --hour <0-11> --gender <male|female> [options]
-  ziwei batch      --input <births.csv|.json> [--format jsonl|json]
+  ziwei batch      --input <births.csv|.json> [--format jsonl|json|csv]
   ziwei compare    --date1 .. --hour1 .. --gender1 .. --date2 .. --hour2 .. --gender2 .. [options]
   ziwei cohort     --input <births.csv|.json> [options]
   ziwei hours
   ziwei --help | --version
 
-chart/analyze/horoscope options:
+chart/analyze/mutagen/elements/horoscope options:
   --format <text|markdown|json|html>   output format (default: text)
   --lang   <vi|en|zh>                  name language (default: vi)
   --target <YYYY|YYYY-MM-DD>           target date for horoscope (default: birth date)
 
 batch options (deterministic, offline - no key needed):
   --input  <file>   .csv (date,hour,gender[,lang][,label]) or .json (array of births)
-  --format <jsonl|json>                output format (default: jsonl)
+  --format <jsonl|json|csv>            output format (default: jsonl)
 
 compare options (deterministic synastry of two charts, offline):
   --format <text|markdown|json>        output format (default: text)
@@ -156,6 +161,24 @@ function cmdAnalyze(rest: string[], io: CliIO): number {
   return 0;
 }
 
+function cmdMutagen(rest: string[], io: CliIO): number {
+  const args = parseChartArgs(rest);
+  const input = chartInputFrom(args);
+  const format = toFormat(args.format);
+  const chart = calculateChart(input);
+  io.log(formatMutagens(analyzeMutagens(chart), { format, lang: input.lang }));
+  return 0;
+}
+
+function cmdElements(rest: string[], io: CliIO): number {
+  const args = parseChartArgs(rest);
+  const input = chartInputFrom(args);
+  const format = toFormat(args.format);
+  const chart = calculateChart(input);
+  io.log(formatElements(analyzeElements(chart), { format, lang: input.lang }));
+  return 0;
+}
+
 function cmdHoroscope(rest: string[], io: CliIO): number {
   const args = parseChartArgs(rest);
   const input = chartInputFrom(args);
@@ -194,8 +217,10 @@ function cmdBatch(rest: string[], io: CliIO): number {
     io.log(JSON.stringify(results, null, 2));
   } else if (format === 'jsonl') {
     io.log(toJsonl(results));
+  } else if (format === 'csv') {
+    io.log(toCsv(results));
   } else {
-    throw new InvalidBirthInputError(`--format must be jsonl|json, got "${format}"`);
+    throw new InvalidBirthInputError(`--format must be jsonl|json|csv, got "${format}"`);
   }
   const failed = results.filter((r) => !r.ok).length;
   return failed > 0 ? 1 : 0;
@@ -371,6 +396,10 @@ export async function run(argv: string[], io: CliIO = DEFAULT_IO): Promise<numbe
         return cmdChart(rest, io);
       case 'analyze':
         return cmdAnalyze(rest, io);
+      case 'mutagen':
+        return cmdMutagen(rest, io);
+      case 'elements':
+        return cmdElements(rest, io);
       case 'horoscope':
         return cmdHoroscope(rest, io);
       case 'batch':

@@ -11,11 +11,11 @@ function capture(): { io: CliIO; out: string[]; err: string[] } {
   };
 }
 
-describe('cli v0.3 commands', () => {
+describe('cli v0.4 commands', () => {
   it('prints the bumped version', async () => {
     const c = capture();
     expect(await run(['--version'], c.io)).toBe(0);
-    expect(c.out.join('\n')).toBe('0.3.0');
+    expect(c.out.join('\n')).toBe('0.4.0');
   });
 
   it('runs horoscope as JSON with a bare target year', async () => {
@@ -53,6 +53,42 @@ describe('cli v0.3 commands', () => {
     expect(code).toBe(0);
     expect(c.out.join('\n')).toContain('STRUCTURAL ANALYSIS');
     expect(c.out.join('\n')).toContain('not advice');
+  });
+
+  it('runs mutagen and elements without an AI key', async () => {
+    const mutagen = capture();
+    expect(
+      await run(
+        ['mutagen', '--date', '1990-05-20', '--hour', '6', '--gender', 'male', '--format', 'json'],
+        mutagen.io,
+      ),
+    ).toBe(0);
+    expect(JSON.parse(mutagen.out.join('\n')).counts).toEqual({
+      loc: 1,
+      quyen: 1,
+      khoa: 1,
+      ky: 1,
+    });
+
+    const elements = capture();
+    expect(
+      await run(
+        ['elements', '--date', '1990-05-20', '--hour', '6', '--gender', 'male', '--lang', 'en'],
+        elements.io,
+      ),
+    ).toBe(0);
+    expect(elements.out.join('\n')).toContain('FIVE-ELEMENT BRANCH BALANCE');
+  });
+
+  it('wires batch CSV output', async () => {
+    const c = capture();
+    const code = await run(
+      ['batch', '--input', 'test/fixtures/cohort_bad.csv', '--format', 'csv'],
+      c.io,
+    );
+    expect(code).toBe(1);
+    expect(c.out.join('\n')).toContain('date,hour,gender,label,ok,soul,body,fiveElementsClass,error');
+    expect(c.out.join('\n')).toContain(',false,,,,');
   });
 
   it('runs cohort as JSON from batch input', async () => {
