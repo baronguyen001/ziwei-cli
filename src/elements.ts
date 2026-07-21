@@ -41,27 +41,85 @@ const LABELS: Record<ElementKey | 'unknown', string> = {
   unknown: 'Unknown',
 };
 
-function plain(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .trim()
-    .toLowerCase();
+function fold(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, '');
 }
 
-function normalizeBranch(branch: string): string {
-  return plain(branch).replace(/\s+/g, '');
+function ascii(s: string): string {
+  return fold(s)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
 }
+
+// Vietnamese branch names with diacritics PRESERVED. This matters because
+// stripping diacritics collapses Tý (子, Water) and Tỵ (巳, Fire) to the same
+// ASCII "ty" — the diacritics are the only thing that tells them apart.
+const VI_BRANCH: Record<string, ElementKey> = {
+  dần: 'moc',
+  mão: 'moc',
+  tỵ: 'hoa',
+  ngọ: 'hoa',
+  thân: 'kim',
+  dậu: 'kim',
+  hợi: 'thuy',
+  tý: 'thuy',
+  thìn: 'tho',
+  tuất: 'tho',
+  sửu: 'tho',
+  mùi: 'tho',
+};
+
+const ZH_BRANCH: Record<string, ElementKey> = {
+  寅: 'moc',
+  卯: 'moc',
+  巳: 'hoa',
+  午: 'hoa',
+  申: 'kim',
+  酉: 'kim',
+  亥: 'thuy',
+  子: 'thuy',
+  辰: 'tho',
+  戌: 'tho',
+  丑: 'tho',
+  未: 'tho',
+};
+
+// ASCII / pinyin fallback. Deliberately EXCLUDES a bare "ty" (ambiguous between
+// Tý and Tỵ) — that pair is resolved above via VI_BRANCH with diacritics.
+const ASCII_BRANCH: Record<string, ElementKey> = {
+  dan: 'moc',
+  mao: 'moc',
+  yin: 'moc',
+  ngo: 'hoa',
+  si: 'hoa',
+  wu: 'hoa',
+  than: 'kim',
+  dau: 'kim',
+  shen: 'kim',
+  you: 'kim',
+  hoi: 'thuy',
+  hai: 'thuy',
+  zi: 'thuy',
+  thin: 'tho',
+  tuat: 'tho',
+  suu: 'tho',
+  mui: 'tho',
+  chen: 'tho',
+  xu: 'tho',
+  chou: 'tho',
+  wei: 'tho',
+};
 
 function branchElement(branch: string): ElementKey | 'unknown' {
-  const key = normalizeBranch(branch);
-  if (new Set(['dan', 'mao', 'yin', '寅', '卯']).has(key)) return 'moc';
-  if (new Set(['ty', 'ti', 'ngo', 'si', 'woo', '巳', '午']).has(key)) return 'hoa';
-  if (new Set(['than', 'dau', 'shen', 'you', '申', '酉']).has(key)) return 'kim';
-  if (new Set(['hoi', 'hai', 'te', 'zi', '亥', '子']).has(key)) return 'thuy';
-  if (new Set(['thin', 'tuat', 'suu', 'mui', 'chen', 'xu', 'chou', 'wei', '辰', '戌', '丑', '未']).has(key)) {
-    return 'tho';
+  const folded = fold(branch);
+  for (const ch of folded) {
+    const zh = ZH_BRANCH[ch];
+    if (zh) return zh;
   }
+  const vi = VI_BRANCH[folded];
+  if (vi) return vi;
+  const asc = ASCII_BRANCH[ascii(branch)];
+  if (asc) return asc;
   return 'unknown';
 }
 

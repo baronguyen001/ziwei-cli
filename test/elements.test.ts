@@ -54,6 +54,16 @@ describe('analyzeElements', () => {
     expect(report.fiveElementsClass).toBe('Water second class');
   });
 
+  it('distinguishes Vietnamese Tý (Water) from Tỵ (Fire) despite the shared ASCII form', () => {
+    const report = analyzeElements(chart([['Tý', 3], ['Tỵ', 2]]));
+    expect(report.counts.thuy).toBe(3);
+    expect(report.counts.hoa).toBe(2);
+    const ty = report.rawBranchTally.find((r) => r.branch === 'Tý');
+    const ti = report.rawBranchTally.find((r) => r.branch === 'Tỵ');
+    expect(ty?.element).toBe('thuy');
+    expect(ti?.element).toBe('hoa');
+  });
+
   it('handles zero-star charts and includes zero deficient elements', () => {
     const report = analyzeElements(chart([['Dần', 0], ['Tý', 0]]));
     expect(report.balanceScore).toBe(100);
