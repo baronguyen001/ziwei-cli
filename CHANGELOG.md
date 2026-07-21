@@ -6,6 +6,10 @@ All notable changes to **ziwei-cli** are documented here. The format follows
 
 ## v0.4.0 - 2026-07-21
 
+### Fixed
+
+- `elements`: Tý (子) now correctly maps to Thủy/Water. Stripping Vietnamese diacritics had collapsed Tý and Tỵ (巳, Fire) to the same ASCII key; branch elements are now matched with diacritics preserved (regression-tested).
+
 ### Added
 - **Four-transformations map** - `ziwei mutagen` plus
   `analyzeMutagens` / `formatMutagens` scan chart stars for Loc, Quyen, Khoa
